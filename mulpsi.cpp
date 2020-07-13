@@ -7,7 +7,7 @@
 namespace spacial {
 
 template <class INDEX, class VALUE, unsigned int DIMENTION = 2>
-class mulp6 : public std::unordered_set<INDEX> {
+class mulpsi : public std::unordered_set<INDEX> {
 
     struct m_index {
         INDEX index;
@@ -117,7 +117,7 @@ class mulp6 : public std::unordered_set<INDEX> {
 
     /**/ public:
 
-    mulp6() {
+    mulpsi() {
         for (m_access ac; ac.enable(); ac.inc())
             extrange[ac.f][ac.b] = 0;
         init();
