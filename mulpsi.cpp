@@ -1,5 +1,6 @@
 
 #include <cassert>
+#include <compare>
 #include <initializer_list>
 #include <unordered_map>
 #include <unordered_set>
@@ -8,6 +9,18 @@ namespace spacial {
 
 template <class INDEX, class VALUE, unsigned int DIMENTION = 2>
 class mulpsi : public std::unordered_set<INDEX> {
+
+    struct m_index;
+    struct m_flag;
+    struct m_access;
+
+    using m_container = std::unordered_set<INDEX>;
+    using m_iterator = typename std::multiset<m_index>::iterator;
+
+    VALUE extrange[2][DIMENTION];
+    m_iterator iter[2][DIMENTION];
+    std::multiset<m_index> data[2][DIMENTION];
+    std::unordered_map<INDEX, m_flag> flag_data;
 
     struct m_index {
         INDEX index;
@@ -29,30 +42,29 @@ class mulpsi : public std::unordered_set<INDEX> {
     };
 
     struct m_access {
-        size_t f, b;
+        bool         f;
+        unsigned int b;
+        
         m_access() {
-            f = 0;
+            f = false;
             b = 0;
         }
 
         constexpr void inc() {
-            b++;
-            f += b / DIMENTION;
-            b %= DIMENTION;
+            if(++b == DIMENTION){
+                if(f == false){
+                    f = true;
+                    b = 0;
+                }
+                else
+                    b = DIMENTION;
+            }
         }
 
-        bool enable() { return f < 2; }
+        bool enable() { return b != DIMENTION; }
     };
 
-    using m_container = std::unordered_set<INDEX>;
-    using m_iterator = typename std::multiset<m_index>::iterator;
-
-    VALUE extrange[2][DIMENTION];
-    m_iterator iter[2][DIMENTION];
-    std::multiset<m_index> data[2][DIMENTION];
-    std::unordered_map<INDEX, m_flag> flag_data;
-
-    void update_extrange(std::initializer_list<VALUE> &_values) {
+    void update_extrange(const std::initializer_list<VALUE> &_values) {
         auto ins_iter = _values.begin();
         for (m_access ac; ac.enable(); ac.inc()) {
             extrange[ac.f][ac.b] = *ins_iter;
@@ -67,16 +79,22 @@ class mulpsi : public std::unordered_set<INDEX> {
         m_container::clear();
     }
 
-    constexpr void slide_insertion(m_access _ac) {
+    constexpr void slide_insertion(const m_access _ac) {
         flag_data[(*iter[_ac.f][_ac.b]).index].flag[_ac.f][_ac.b] = true;
         if (flag_data[(*iter[_ac.f][_ac.b]).index].extractable() == true)
             m_container::insert((*iter[_ac.f][_ac.b]).index);
     }
 
-    constexpr void slide_deletion(m_access _ac) {
+    constexpr void slide_deletion(const m_access _ac) {
         if (flag_data[(*iter[_ac.f][_ac.b]).index].extractable() == true)
             m_container::erase((*iter[_ac.f][_ac.b]).index);
         flag_data[(*iter[_ac.f][_ac.b]).index].flag[_ac.f][_ac.b] = false;
+    }
+
+    constexpr bool slide_comp(const m_access _ac){
+        const std::partial_ordering comp =
+            (*iter[_ac.f][_ac.b]).value <=> extrange[1 - _ac.f][_ac.b];
+        return comp > 0 or (_ac.f == true and comp == 0);
     }
 
     void slide_pointer() {
@@ -86,36 +104,22 @@ class mulpsi : public std::unordered_set<INDEX> {
 
         for (m_access ac; ac.enable(); ac.inc()) {
 
-            if (iter[ac.f][ac.b] != data[ac.f][ac.b].begin()) {
+            while(iter[ac.f][ac.b] != data[ac.f][ac.b].begin()){
                 iter[ac.f][ac.b]--;
-                while ((*iter[ac.f][ac.b]).value > extrange[1 - ac.f][ac.b]) {
-                    if (ac.f == 0)
-                        slide_deletion(ac);
-                    else
-                        slide_insertion(ac);
-                    if (iter[ac.f][ac.b] != data[ac.f][ac.b].begin())
-                        iter[ac.f][ac.b]--;
-                    else
-                        break;
-                }
+                if(slide_comp(ac) == true)
+                    ac.f == false ? slide_deletion(ac):slide_insertion(ac);
+                else break;
+            }
+            
+            while( (iter[ac.f][ac.b] != data[ac.f][ac.b].end()--) and slide_comp(ac) == false){
+                ac.f == false ? slide_insertion(ac):slide_deletion(ac);
+                iter[ac.f][ac.b]++;
             }
 
-            if (iter[ac.f][ac.b] != data[ac.f][ac.b].end()--) {
-                while ((*iter[ac.f][ac.b]).value <= extrange[1 - ac.f][ac.b]) {
-                    if (ac.f == 1)
-                        slide_deletion(ac);
-                    else
-                        slide_insertion(ac);
-                    if (iter[ac.f][ac.b] != data[ac.f][ac.b].end()--)
-                        iter[ac.f][ac.b]++;
-                    else
-                        break;
-                }
-            }
         }
     }
 
-    /**/ public:
+    public:
 
     mulpsi() {
         for (m_access ac; ac.enable(); ac.inc())
@@ -123,19 +127,19 @@ class mulpsi : public std::unordered_set<INDEX> {
         init();
     }
 
-    void init(std::initializer_list<VALUE> _values) {
+    void init(const std::initializer_list<VALUE> _values) {
         update_extrange(_values);
         init();
     }
 
-    size_t size() { return data[0][0].size(); }
+    const size_t size() { return data[0][0].size(); }
 
-    void insert(INDEX _index, std::initializer_list<VALUE> _values) {
+    const size_t extracted_size() { return m_container::size(); } 
+
+    void insert(const INDEX _index, const std::initializer_list<VALUE> _values) {
 
         auto ins_iter = _values.begin();
         bool register_iter = (size() == 0);
-
-        unsigned int ifor, ibac;
 
         m_flag iflag;
 
@@ -151,16 +155,19 @@ class mulpsi : public std::unordered_set<INDEX> {
         }
 
         flag_data.emplace(_index, iflag);
+
         if (iflag.extractable() == true)
             m_container::insert(_index);
+
         if (register_iter == true) {
             for (m_access ac; ac.enable(); ac.inc())
                 iter[ac.f][ac.b] = data[ac.f][ac.b].begin();
         }
         slide_pointer();
+
     }
 
-    void erase(INDEX _index) {
+    void erase(const INDEX _index) {
 
         for (m_access ac; ac.enable(); ac.inc()) {
             if ((*iter[ac.f][ac.b]).index == _index) {
@@ -189,7 +196,7 @@ class mulpsi : public std::unordered_set<INDEX> {
         slide_pointer();
     }
 
-    void slide_pointer(std::initializer_list<VALUE> _values) {
+    void slide_pointer(const std::initializer_list<VALUE> _values) {
         update_extrange(_values);
         slide_pointer();
     }
