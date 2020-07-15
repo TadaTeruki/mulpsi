@@ -1,4 +1,5 @@
 
+#include <set>
 #include <cassert>
 #include <compare>
 #include <initializer_list>
@@ -79,31 +80,31 @@ class mulpsi : public std::unordered_set<INDEX> {
         m_container::clear();
     }
 
-    constexpr void slide_insertion(const m_access _ac) {
+    void slide_insertion(const m_access _ac) {
         flag_data[(*iter[_ac.f][_ac.b]).index].flag[_ac.f][_ac.b] = true;
         if (flag_data[(*iter[_ac.f][_ac.b]).index].extractable() == true)
             m_container::insert((*iter[_ac.f][_ac.b]).index);
     }
 
-    constexpr void slide_deletion(const m_access _ac) {
+    void slide_deletion(const m_access _ac) {
         if (flag_data[(*iter[_ac.f][_ac.b]).index].extractable() == true)
             m_container::erase((*iter[_ac.f][_ac.b]).index);
         flag_data[(*iter[_ac.f][_ac.b]).index].flag[_ac.f][_ac.b] = false;
     }
 
-    constexpr bool slide_comp(const m_access _ac){
+    bool slide_comp(const m_access _ac){
         const std::partial_ordering comp =
             (*iter[_ac.f][_ac.b]).value <=> extrange[1 - _ac.f][_ac.b];
         return comp > 0 or (_ac.f == true and comp == 0);
     }
 
-    void slide_pointer() {
+    constexpr void slide_pointer() {
 
         if (size() == 0)
             return;
 
         for (m_access ac; ac.enable(); ac.inc()) {
-
+            
             while(iter[ac.f][ac.b] != data[ac.f][ac.b].begin()){
                 iter[ac.f][ac.b]--;
                 if(slide_comp(ac) == true)
@@ -117,6 +118,8 @@ class mulpsi : public std::unordered_set<INDEX> {
             }
 
         }
+
+
     }
 
     public:
