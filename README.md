@@ -140,7 +140,7 @@ GUI及び描画ライブラリを使った視覚的シミュレーションな�
  - [benchmark](https://github.com/google/benchmark) : ベンチマークのための各種機能の導入に使用
  - [RTree](https://github.com/nushoin/RTree) : 比較するアルゴリズム (R-tree) の導入に使用
 
-### benchmark_test/compare.cpp (2020/07/15 計測)
+### test_benchmark/compare.cpp (2020/07/15 計測)
 
 ##### シチュエーション
 
